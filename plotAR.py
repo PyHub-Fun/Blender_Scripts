@@ -5,10 +5,15 @@ from math import radians
 AXES_SIZE = 2
 RAD90 = radians(90)
 
+# global
+_C = bpy.context
+_D = bpy.data
+_O = bpy.ops
+
 
 def remove_objects():
-    bpy.ops.object.select_all(action="SELECT")
-    bpy.ops.object.delete(use_global=False)
+    _O.object.select_all(action="SELECT")
+    _O.object.delete(use_global=False)
 
 
 def _create_plane():
@@ -29,30 +34,31 @@ def _create_plane():
                                                 scale=(1, 1, 1))
 
 
+def _create_text(TXT: str, name: str, scale=(0.3, 0.3, 0.3)):
+    curve = _D.curves.new(type="FONT", name=name)
+    curve.body = TXT
+    curve_obj = _D.objects.new(name, curve)
+
+    curve_obj.scale = scale
+    curve_obj.rotation_euler[0] = RAD90
+
+    _C.scene.collection.objects.link(curve_obj)
+
+    mod = curve_obj.modifiers.new(name="solid", type="SOLIDIFY")
+    mod.thickness = 0.1
+
+    return curve_obj
+
+
 def _create_axis():
-    axis_x = bpy.data.curves.new(type="FONT", name="axis_x")
-    axis_x.body = "X"
-    axis_x_obj = bpy.data.objects.new("Axis_X", axis_x)
+    axis_x_obj = _create_text("X", "axis_x")
     axis_x_obj.location[0] = AXES_SIZE
-    axis_x_obj.rotation_euler[0] = RAD90
-    axis_x_obj.scale = (0.3, 0.3, 0.3)
-    bpy.context.scene.collection.objects.link(axis_x_obj)
 
-    axis_y = bpy.data.curves.new(type="FONT", name="axis_y")
-    axis_y.body = "Y"
-    axis_y_obj = bpy.data.objects.new("Axis_Y", axis_y)
+    axis_y_obj = _create_text("Y", "axis_y")
     axis_y_obj.location = (AXES_SIZE, AXES_SIZE, 0)
-    axis_y_obj.rotation_euler[0] = RAD90
-    axis_y_obj.scale = (0.3, 0.3, 0.3)
-    bpy.context.scene.collection.objects.link(axis_y_obj)
 
-    axis_z = bpy.data.curves.new(type="FONT", name="axis_z")
-    axis_z.body = "Z"
-    axis_z_obj = bpy.data.objects.new("Axis_Z", axis_z)
+    axis_z_obj = _create_text("Z", "axis_z")
     axis_z_obj.location = (AXES_SIZE, AXES_SIZE, AXES_SIZE)
-    axis_z_obj.rotation_euler[0] = RAD90
-    axis_z_obj.scale = (0.3, 0.3, 0.3)
-    bpy.context.scene.collection.objects.link(axis_z_obj)
 
 
 def build_axes():
