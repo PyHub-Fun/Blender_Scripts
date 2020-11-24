@@ -66,5 +66,5 @@ def build_axes():
     _create_axis()
 
 
-remove_objects()
-build_axes()
+# remove_objects()
+# build_axes()
