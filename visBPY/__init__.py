@@ -1,12 +1,15 @@
-from .plotAR import remove_objects, build_axes
-import random
+from typing import Iterator
+import bpy
+from .basic import VisCore
 
-__all__ = ['build_axes', 'remove_objects', 'make_data_scatter']
-
-
-def _rand_array(n):
-    return [random.randint(0, 100) for _ in range(n)]
-
-
-def make_data_scatter(N=10):
-    return {"x": _rand_array(N), "y": _rand_array(N), "z": _rand_array(N)}
+class Axes(VisCore):
+    SIZE = {
+        "X": 1,
+        "Y": 1,
+        "Z": 1
+    }
+    def __init__(self, size:int=1):
+        super().__init__(size)
+    def scatter(self, xs:Iterator[float], ys:Iterator[float], zs:Iterator[float], c:str='r', marker:str='o'):
+        self._add_scatters(zip(xs, ys, zs), c=c, marker=marker)
+        self._C.scene.cursor.location = [0, 2, 0]

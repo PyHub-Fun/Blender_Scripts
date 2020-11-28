@@ -1,1 +1,5 @@
 .vscode/
+*.pyc
+.DS_Store
+*.gltf
+*.usdz
