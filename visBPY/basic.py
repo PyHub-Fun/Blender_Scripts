@@ -43,6 +43,29 @@ class VisCore:
 
 	    return curve_obj
 
+	def _add_3d_curve(self, points, thickness = 0.1, c=None):
+
+		_material = self._create_material_with_color("_ForPlot", self._C2COLOR.get(c))
+
+		curve_data = self._D.curves.new("_plot", type = "CURVE")
+		curve_data.dimensions = '3D'
+		curve_data.resolution_u = 20
+		curve_data.render_resolution_u = 32
+		curve_data.fill_mode = 'FULL'
+		curve_data.extrude = 0.01
+		curve_data.bevel_depth = 0.01
+		curve_data.materials.append(_material)
+
+		polyline = curve_data.splines.new("NURBS")
+		polyline.points.add(len(points))
+		for i, coord in enumerate(points):
+			x, y, z = coord
+			polyline.points[i].co = (x, y, z, 1)
+		curve_obj = self._D.objects.new("_Plot", curve_data)
+
+		
+		self._C.scene.collection.objects.link(curve_obj)
+
 	def _add_scatters(self, points, size: float=0.05, marker:str = 'o', c:str=None):
 		"""
 		:marker: o | ^ | #
