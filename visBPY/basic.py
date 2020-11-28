@@ -1,6 +1,8 @@
 import bpy
 from typing import Iterator, Any
 from math import radians
+from mathutils import Vector
+import bmesh
 
 class VisCore:
 	PLANE_SIZE = 2
@@ -43,7 +45,50 @@ class VisCore:
 
 	    return curve_obj
 
-	def _add_3d_curve(self, points, thickness = 0.1, c=None):
+	def _add_3d_surface(self, x, y, z):
+		LEN_X = len(x[0])
+		LEN_Y = len(y[0])
+		verts = []
+		faces = []
+		vert_idcs = 0
+		for i in range(LEN_X):
+			for j in range(LEN_Y):
+				vert = (x[i][j], y[i][j], z[i][j])
+				verts.append(vert)
+
+				if i < LEN_X - 1 and j < LEN_Y - 1:
+					faces.append([vert_idcs, vert_idcs+1, vert_idcs+LEN_Y+1, vert_idcs+LEN_Y, vert_idcs])
+				vert_idcs += 1
+
+		mesh_data = self._D.meshes.new("PlotSurface")
+
+		mesh_data.from_pydata(verts, [], faces)
+
+		bm = bmesh.new()
+		bm.from_mesh(mesh_data)
+
+		# UV color
+		clr_verify = bm.loops.layers.color.new("Color")
+		palette = self._D.palettes.new("_ForSurfaceUV")
+		pal_clrs = palette.colors
+
+		for bm_face in bm.faces:
+			for bm_loop in bm_face.loops:
+				v = bm_loop.vert.co.normalized()
+				v = v * 0.5 + Vector.Fill(3, 0.5)
+				clr = list(v)
+				clr_alpha = clr + [1.0]
+				bm_loop[clr_verify] = clr_alpha
+
+				pal_entry = pal_clrs.new()
+				pal_entry.color = clr
+
+		bm.to_mesh(mesh_data)
+		bm.free()
+
+		mesh_obj = self._D.objects.new(mesh_data.name, mesh_data)
+		self._C.collection.objects.link(mesh_obj)
+	def _add_3d_curve(self, points, thickness = 0.01, c=None):
 
 		_material = self._create_material_with_color("_ForPlot", self._C2COLOR.get(c))
 
@@ -52,8 +97,8 @@ class VisCore:
 		curve_data.resolution_u = 20
 		curve_data.render_resolution_u = 32
 		curve_data.fill_mode = 'FULL'
-		curve_data.extrude = 0.01
-		curve_data.bevel_depth = 0.01
+		curve_data.extrude = thickness
+		curve_data.bevel_depth = thickness
 		curve_data.materials.append(_material)
 
 		polyline = curve_data.splines.new("NURBS")
@@ -62,7 +107,6 @@ class VisCore:
 			x, y, z = coord
 			polyline.points[i].co = (x, y, z, 1)
 		curve_obj = self._D.objects.new("_Plot", curve_data)
-
 		
 		self._C.scene.collection.objects.link(curve_obj)
 

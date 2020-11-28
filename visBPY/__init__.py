@@ -17,3 +17,6 @@ class Axes(VisCore):
     
     def plot(self, xs, ys, zs, c='r'):
         self._add_3d_curve(list( zip(xs, ys, zs) ), c=c)
+    
+    def plot_surface(self, xs, ys, zs):
+        self._add_3d_surface(xs, ys, zs)
