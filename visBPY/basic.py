@@ -46,8 +46,20 @@ class VisCore:
 	    return curve_obj
 
 	def _add_3d_surface(self, x, y, z):
+		"""
+		"""
+		MESH_NAME = "PlotSurface"
+		VC_TYPE = "ShaderNodeVertexColor"
+
 		LEN_X = len(x[0])
 		LEN_Y = len(y[0])
+
+		#TODO: coord z range <- cal by numpy, not work for Matrix form list
+		max_z = z.max()
+		min_z = z.min()
+
+		print(f"Max_Z: {max_z}, Min_Z: {min_z}")
+
 		verts = []
 		faces = []
 		vert_idcs = 0
@@ -60,33 +72,40 @@ class VisCore:
 					faces.append([vert_idcs, vert_idcs+1, vert_idcs+LEN_Y+1, vert_idcs+LEN_Y, vert_idcs])
 				vert_idcs += 1
 
-		mesh_data = self._D.meshes.new("PlotSurface")
+		mesh_data = self._D.meshes.new(MESH_NAME)
 
 		mesh_data.from_pydata(verts, [], faces)
+		mesh_obj = self._D.objects.new(mesh_data.name, mesh_data)
+
+		## Using Vertex_Color
+		vert_col_name = F'_For{MESH_NAME}'
+		if mesh_data.vertex_colors.find(vert_col_name) == -1:
+			mesh_data.vertex_colors.new(name = vert_col_name)
 
 		bm = bmesh.new()
 		bm.from_mesh(mesh_data)
-
-		# UV color
-		clr_verify = bm.loops.layers.color.new("Color")
-		palette = self._D.palettes.new("_ForSurfaceUV")
-		pal_clrs = palette.colors
+		bm_vert_color = bm.loops.layers.color[vert_col_name]
 
 		for bm_face in bm.faces:
 			for bm_loop in bm_face.loops:
-				v = bm_loop.vert.co.normalized()
-				v = v * 0.5 + Vector.Fill(3, 0.5)
-				clr = list(v)
-				clr_alpha = clr + [1.0]
-				bm_loop[clr_verify] = clr_alpha
-
-				pal_entry = pal_clrs.new()
-				pal_entry.color = clr
-
+				coord_z = bm_loop.vert.co[2]
+				coord_z_ration = (coord_z - min_z ) / max_z
+				bm_loop[bm_vert_color] = self._get_value_between_two_colors(coord_z_ration) + [1.]
 		bm.to_mesh(mesh_data)
 		bm.free()
+		## End Vertex_Color Editing
 
-		mesh_obj = self._D.objects.new(mesh_data.name, mesh_data)
+		## Asign Vertex Color to Material via Node
+		mat = self._D.materials.new(name = vert_col_name)
+		mat.use_nodes = True
+		vc = mat.node_tree.nodes.new(VC_TYPE)
+		vc.layer_name = vert_col_name
+
+		bsdf = mat.node_tree.nodes['Principled BSDF']
+		mat.node_tree.links.new(vc.outputs[0], bsdf.inputs[0])
+		## End Asign Material
+		mesh_data.materials.append(mat)
+
 		self._C.collection.objects.link(mesh_obj)
 	def _add_3d_curve(self, points, thickness = 0.01, c=None):
 
@@ -165,3 +184,12 @@ class VisCore:
 	def _remove_objects(self):
 		self._O.object.select_all(action="SELECT")
 		self._O.object.delete(use_global=False)
+
+	def _get_value_between_two_colors(self, z_ratio:float):
+		ar, ag, ab = 0., 0., 1.
+		br, bg, bb = 1., 0., 0.
+
+		R = z_ratio * 1 + 0
+		G = z_ratio * 0 + 0
+		B = z_ratio * -1 + 1
+		return [R, G, B]
