@@ -3,6 +3,8 @@ from typing import Iterator, Any
 from math import radians
 from mathutils import Vector
 import bmesh
+import numpy as np
+import math
 
 class VisCore:
 	PLANE_SIZE = 2
@@ -55,13 +57,15 @@ class VisCore:
 
 	    return curve_obj
 
-	def _add_3d_surface(self, x, y, z):
+	def _add_3d_surface(self):
 		"""
 		:param x, y, z: Matrix of surface vertices
 		"""
 		_COLL_SURFACE = self._create_collection("PLOT_SURFACE")
 		MESH_NAME = "PlotSurface"
 		VC_TYPE = "ShaderNodeVertexColor"
+
+		x,y,z = self._loc_X, self._loc_Y, self._loc_Z
 
 		LEN_X = len(x[0])
 		LEN_Y = len(y[0])
@@ -118,7 +122,10 @@ class VisCore:
 
 		# self._C.collection.objects.link(mesh_obj)
 		_COLL_SURFACE.objects.link(mesh_obj)
-	def _add_3d_curve(self, points, thickness = 0.01, c=None):
+	def _add_3d_curve(self, thickness = 0.01, c=None):
+		"""
+		"""
+		points = list(zip(self._loc_X, self._loc_Y, self._loc_Z))
 		_COLL_CURVE = self._create_collection("PLOT_LINE")
 
 		_material = self._create_material_with_color("_ForPlot", self._C2COLOR.get(c))
@@ -142,7 +149,7 @@ class VisCore:
 		# self._C.scene.collection.objects.link(curve_obj)
 		_COLL_CURVE.objects.link(curve_obj)
 
-	def _add_scatters(self, points, size: float=0.05, marker:str = 'o', c:str=None):
+	def _add_scatters(self, marker_size: float=0.05, marker:str = 'o', c:str=None):
 		"""
 		:param points: scatter data points
 		:param size: marker size
@@ -151,20 +158,22 @@ class VisCore:
 		"""
 		#TODO: create new material with color - c
 
+		points = zip(self._loc_X, self._loc_Y, self._loc_Z)
+
 		_COLL_SCATTER = self._create_collection("PLOT_SCATTERS")
 		_mark_material = self._create_material_with_color("_ForMarker", self._C2COLOR.get(c))
 
 		for point in points:
 			# TODO: transform needed, maybe
 			location = [ l * self.PLANE_SIZE for l in point]
-			self._add_data_marker(location, size = size, marker = marker, c = c)
+			self._add_data_marker(point, size = marker_size, marker = marker, c = c)
 			# latest created active object
 			_ao = self._C.object
 			_ao.data.materials.append( _mark_material )
 			_COLL_SCATTER.objects.link(_ao)
 			self._C.scene.collection.objects.unlink(_ao)
 
-	def _add_data_marker(self, loc: Iterator[Any], size: float=0.1, marker:str = None, c:str=None):
+	def _add_data_marker(self, loc, size: float=0.1, marker:str = None, c:str=None):
 		if marker == '#': # Cube
 			self._O.mesh.primitive_cube_add(size = size, location = loc)
 		elif marker == '^': # Cone
@@ -225,3 +234,25 @@ class VisCore:
 		G = z_ratio * 0 + 0
 		B = z_ratio * -1 + 1
 		return [R, G, B]
+	def _normalize(self, loc):
+		return (loc - self._lower_coord) / (self._upper_coord - self._lower_coord) * self.PLANE_SIZE
+	def _preprocess_coordinate(self, X, Y, Z, check_dim = None):
+		self._internal_X = np.array(X, dtype = np.float32)
+		self._internal_Y = np.array(Y, dtype = np.float32)
+		self._internal_Z = np.array(Z, dtype = np.float32)
+
+		if check_dim:
+			assert len(self._internal_X.shape) == check_dim
+			assert len(self._internal_Y.shape) == check_dim 
+			assert len(self._internal_Z.shape) == check_dim 
+
+		self._lower_limit = min(self._internal_X.min(), self._internal_Y.min(), self._internal_Z.min())
+		self._upper_limit = max(self._internal_X.max(), self._internal_Y.max(), self._internal_Z.max())
+		# set origin range
+		self._lower_coord = math.floor(self._lower_limit)
+		self._upper_coord = math.ceil(self._upper_limit)
+
+		# data transilation
+		self._loc_X = self._normalize(self._internal_X)
+		self._loc_Y = self._normalize(self._internal_Y)
+		self._loc_Z = self._normalize(self._internal_Z)

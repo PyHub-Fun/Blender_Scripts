@@ -7,8 +7,9 @@ __Blender V2.90.1__
 
 ### TODO
 - [x] Use Collection to organize objects
-- [] Axes range transform 
+- [x] Axes range transform 
 - [] Add Labels, Title, Legends
-- [] Axes Plane & Light
+- [] Axes Plane & Light & set Origin
 - [] Animation
 - [] Bar Plot
+- [] Update Axes while plotting multiple diagrams
