@@ -6,8 +6,9 @@ plot.AR
 __Blender V2.90.1__
 
 ### TODO
-- [] Collection of objects
+- [x] Use Collection to organize objects
 - [] Axes range transform 
 - [] Add Labels, Title, Legends
+- [] Axes Plane & Light
 - [] Animation
 - [] Bar Plot

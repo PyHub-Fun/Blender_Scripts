@@ -19,9 +19,19 @@ class VisCore:
 	def __init__(self, size):
 		self._remove_objects()
 		self._bg_material = self._create_material_with_color("BG", (0.3,0.3,0.3,1))
+
+		self.COLL_AXES = self._create_collection("AXES")
+
 		for plane in ["xy", "xz", "yz"]:
 			self._create_plane(plane, size=size)
 			self._C.object.data.materials.append( self._bg_material )
+			self.COLL_AXES.objects.link(self._C.object)
+			self._C.scene.collection.objects.unlink(self._C.object)
+
+	def _create_collection(self, name):
+		col = self._D.collections.new(name)
+		self._C.scene.collection.children.link(col)
+		return col
 
 	def _create_material_with_color(self, name, color):
 		material = self._D.materials.new(name)
@@ -30,7 +40,7 @@ class VisCore:
 		# material.diffuse_color = color
 		return material
 
-	def _create_text(self, TXT, name, scale=(0.3, 0.3, 0.3)):
+	def _create_text(self, TXT, name, scale=(0.3, 0.3, 0.3), to_coll=True):
 	    curve = self._D.curves.new(type="FONT", name=name)
 	    curve.body = TXT
 	    curve_obj = self._D.objects.new(name, curve)
@@ -38,7 +48,7 @@ class VisCore:
 	    curve_obj.scale = scale
 	    curve_obj.rotation_euler[0] = self.RAD90
 
-	    self._C.scene.collection.objects.link(curve_obj)
+	    self.COLL_AXES.objects.link(curve_obj)
 
 	    mod = curve_obj.modifiers.new(name="solid", type="SOLIDIFY")
 	    mod.thickness = 0.1
@@ -47,7 +57,9 @@ class VisCore:
 
 	def _add_3d_surface(self, x, y, z):
 		"""
+		:param x, y, z: Matrix of surface vertices
 		"""
+		_COLL_SURFACE = self._create_collection("PLOT_SURFACE")
 		MESH_NAME = "PlotSurface"
 		VC_TYPE = "ShaderNodeVertexColor"
 
@@ -57,8 +69,6 @@ class VisCore:
 		#TODO: coord z range <- cal by numpy, not work for Matrix form list
 		max_z = z.max()
 		min_z = z.min()
-
-		print(f"Max_Z: {max_z}, Min_Z: {min_z}")
 
 		verts = []
 		faces = []
@@ -106,8 +116,10 @@ class VisCore:
 		## End Asign Material
 		mesh_data.materials.append(mat)
 
-		self._C.collection.objects.link(mesh_obj)
+		# self._C.collection.objects.link(mesh_obj)
+		_COLL_SURFACE.objects.link(mesh_obj)
 	def _add_3d_curve(self, points, thickness = 0.01, c=None):
+		_COLL_CURVE = self._create_collection("PLOT_LINE")
 
 		_material = self._create_material_with_color("_ForPlot", self._C2COLOR.get(c))
 
@@ -127,22 +139,32 @@ class VisCore:
 			polyline.points[i].co = (x, y, z, 1)
 		curve_obj = self._D.objects.new("_Plot", curve_data)
 		
-		self._C.scene.collection.objects.link(curve_obj)
+		# self._C.scene.collection.objects.link(curve_obj)
+		_COLL_CURVE.objects.link(curve_obj)
 
 	def _add_scatters(self, points, size: float=0.05, marker:str = 'o', c:str=None):
 		"""
-		:marker: o | ^ | #
+		:param points: scatter data points
+		:param size: marker size
+		:param marker: o | ^ | #
+		:param c: color of markers
 		"""
 		#TODO: create new material with color - c
+
+		_COLL_SCATTER = self._create_collection("PLOT_SCATTERS")
 		_mark_material = self._create_material_with_color("_ForMarker", self._C2COLOR.get(c))
 
 		for point in points:
 			# TODO: transform needed, maybe
 			location = [ l * self.PLANE_SIZE for l in point]
-			self._add_object(location, size = size, marker = marker, c = c)
-			self._C.object.data.materials.append( _mark_material )
+			self._add_data_marker(location, size = size, marker = marker, c = c)
+			# latest created active object
+			_ao = self._C.object
+			_ao.data.materials.append( _mark_material )
+			_COLL_SCATTER.objects.link(_ao)
+			self._C.scene.collection.objects.unlink(_ao)
 
-	def _add_object(self, loc: Iterator[Any], size: float=0.1, marker:str = None, c:str=None):
+	def _add_data_marker(self, loc: Iterator[Any], size: float=0.1, marker:str = None, c:str=None):
 		if marker == '#': # Cube
 			self._O.mesh.primitive_cube_add(size = size, location = loc)
 		elif marker == '^': # Cone
@@ -152,6 +174,12 @@ class VisCore:
 											location = loc)
 
 	def _create_plane(self, which : str ='xy', size :int=1):
+		"""
+		:param which: Which axes plane to create - xy | yz | xz.
+		:param size: Size of the plane, 1 by default.
+		:returns: None
+		"""
+
 		_plane_size = self.PLANE_SIZE * size
 		_loc = [_plane_size / 2] * 3
 		_rot = [0.,0.,0.]
@@ -177,13 +205,17 @@ class VisCore:
 
 
 		self._O.mesh.primitive_grid_add(size = _plane_size,
+										enter_editmode = False,
 										location = _loc,
 										rotation = _rot)
+		self._C.object.name = F"Plane_{which}"
 		self._C.object.modifiers.new(f'Plane_{which}', type = "WIREFRAME")
 
 	def _remove_objects(self):
 		self._O.object.select_all(action="SELECT")
 		self._O.object.delete(use_global=False)
+		for col in self._D.collections:
+			self._D.collections.remove(col)
 
 	def _get_value_between_two_colors(self, z_ratio:float):
 		ar, ag, ab = 0., 0., 1.
