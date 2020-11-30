@@ -8,6 +8,7 @@ import math
 
 class VisCore:
 	PLANE_SIZE = 2
+	PLANE_CENT = 1
 	RAD90 = radians(90)
 
 	_C = bpy.context
@@ -42,20 +43,20 @@ class VisCore:
 		# material.diffuse_color = color
 		return material
 
-	def _create_text(self, TXT, name, scale=(0.3, 0.3, 0.3), to_coll=True):
-	    curve = self._D.curves.new(type="FONT", name=name)
-	    curve.body = TXT
-	    curve_obj = self._D.objects.new(name, curve)
+	def _create_text(self, TXT, name, scale=(0.3, 0.3, 0.3), to_coll=None):
+		curve = self._D.curves.new(type="FONT", name=name)
+		curve.body = TXT
+		curve_obj = self._D.objects.new(name, curve)
 
-	    curve_obj.scale = scale
-	    curve_obj.rotation_euler[0] = self.RAD90
+		curve_obj.scale = scale
+		curve_obj.rotation_euler[0] = self.RAD90
+		if to_coll is not None:
+			to_coll.objects.link(curve_obj)
 
-	    self.COLL_AXES.objects.link(curve_obj)
+		mod = curve_obj.modifiers.new(name="solid", type="SOLIDIFY")
+		mod.thickness = 0.1
 
-	    mod = curve_obj.modifiers.new(name="solid", type="SOLIDIFY")
-	    mod.thickness = 0.1
-
-	    return curve_obj
+		return curve_obj
 
 	def _add_3d_surface(self):
 		"""
@@ -196,20 +197,20 @@ class VisCore:
 		if which == 'xy':
 			_loc[2] = 0
 
-			axis_x_obj = self._create_text("X", "axis_x")
+			axis_x_obj = self._create_text("X", "axis_x", to_coll=self.COLL_AXES)
 			axis_x_obj.location[0] = _plane_size
 		elif which == 'yz':
 			_loc[0] = 0
 			_rot[1] = self.RAD90
 
-			axis_y_obj = self._create_text("Y", "axis_y")
+			axis_y_obj = self._create_text("Y", "axis_y", to_coll=self.COLL_AXES)
 			axis_y_obj.location = (_plane_size, _plane_size, 0)
 
 		elif which == 'xz':
 			_loc[1] *= 2
 			_rot[0] = self.RAD90
 
-			axis_z_obj = self._create_text("Z", "axis_z")
+			axis_z_obj = self._create_text("Z", "axis_z", to_coll=self.COLL_AXES)
 			axis_z_obj.location = (_plane_size, _plane_size, _plane_size)
 
 
